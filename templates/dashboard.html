@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+    <h1><b>Welcome</b></h1>
+    <hr>
+<!-- "Create account of student or staff" button -->
+    <div class="create-account-button">
+        <div class="button-container">
+            <a class="btn btn-primary" href="{{ url_for('staff_login') }}">Are you a staff?</a>
+            <a class="btn btn-primary" style="margin-left: 10px;" href="{{ url_for('student_login') }}">Are you a student?</a>
+        </div>
+
+{% endblock %}

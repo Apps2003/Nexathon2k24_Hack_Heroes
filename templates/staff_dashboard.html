@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Staff Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="fw-bold mb-4 text-uppercase">Staff Dashboard</h2>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>Class Name</th>
+                    <th>Roll No</th>
+                    <th>Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>{{ student.student_name }}</td>
+                    <td>{{ student.class_name }}</td>
+                    <td>{{ student.rollno }}</td>
+                    <td>{{ student.email }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
