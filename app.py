@@ -1,10 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, EmailField, StringField
 from wtforms.validators import DataRequired, Length
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import login_user, LoginManager, login_required, current_user, logout_user, UserMixin
-
+from datetime import datetime
 import bcrypt
 import hashlib
 
@@ -18,14 +18,25 @@ STAFF_PASSWORD = "staff"
 # Database Configuration
 db = SQLAlchemy()
 app.config['SECRET_KEY'] = "my-secrets"
-app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///student_attendance.db"
-db.init_app(app)
 
+# Database Configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///student.db"
+app.config['SQLALCHEMY_BINDS'] = {
+    'class': 'sqlite:///class.db'
+}
+db = SQLAlchemy(app)
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
+
+class Class(db.Model):
+    __bind_key__ = 'class'
+    id = db.Column(db.Integer, primary_key=True)
+    className = db.Column(db.String(100), nullable=False)
+    classTeacher = db.Column(db.String(100), nullable=False)
+
 
 
 login_manager = LoginManager()
@@ -35,7 +46,8 @@ login_manager.init_app(app)
 
 @login_manager.user_loader
 def load_user(user_id):
-    return Register.query.get(int(user_id))
+    return User.query.get(int(user_id))
+
 
 
 class Register(db.Model):
@@ -77,6 +89,17 @@ class LoginForm(FlaskForm):
     email = EmailField(label='Email', validators=[DataRequired()])
     password = PasswordField(label="Password", validators=[DataRequired()])
 
+class Attendance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(10), nullable=False)
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
 @app.route("/")
 def home():
     return redirect(url_for("dashboard"))
@@ -99,7 +122,38 @@ def staff_login():
     return render_template("staff_login.html")
 
 
-@app.route("/student_login", methods=["POST", "GET"])    
+@app.route("/class")
+def class_page():
+    return render_template("class.html")
+
+@app.route('/class_details')
+def class_details():
+    classes = Class.query.all()
+    return render_template('class.html', classes=classes)
+
+
+
+@app.route('/add_class', methods=['POST'])
+def add_class():
+    if request.method == 'POST':
+        className = request.form['className']
+        classTeacher = request.form['classTeacher']
+
+        new_class = Class(className=className, classTeacher=classTeacher)
+        db.session.add(new_class)
+        db.session.commit()
+
+        # Return JSON response with className and classTeacher
+        return jsonify({'className': className, 'classTeacher': classTeacher})
+
+        flash('Class added successfully!', 'success')
+
+        return redirect(url_for('class_details'))
+
+    flash('Failed to add class!', 'danger')
+    return redirect(url_for('class_details'))
+
+@app.route("/student_login", methods=["POST", "GET"])
 def student_login():
     form = LoginForm()
     if request.method == "POST" and form.validate_on_submit():
@@ -108,7 +162,7 @@ def student_login():
         user = Register.query.filter_by(email=email, password=password).first()
         if user:
             login_user(user)
-            return redirect(url_for("student_login"))
+            return redirect(url_for("dashboard"))
     flash("Please enter correct details!", "info")
     return render_template("student_login.html", form=form)
 
@@ -140,7 +194,6 @@ def student_register():
     return render_template("student_register.html", form=form)
 
 @app.route("/staff_dashboard")
-@login_required
 def staff_dashboard():
     # Query the database to fetch student data
     students = Register.query.all()
